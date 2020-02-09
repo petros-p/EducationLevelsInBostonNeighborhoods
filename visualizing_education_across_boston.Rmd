@@ -1,0 +1,126 @@
+---
+title: "Visualizing Education Across Boston Neighborhoods using ggplot2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+require(ggplot2)
+wd <- getwd()
+setwd(wd)
+ACS_1216_TRACT_CSV <- paste(wd, '/ACS_1216_TRACT.csv', sep = '')
+acs1216 <- read.csv(ACS_1216_TRACT_CSV)
+colnames(acs1216)[colnames(acs1216)=="ï..CT_ID_10"] <- "CT_ID_10"
+```
+
+
+```{r}
+Tracts_Boston_2010_BARI_CSV <- paste(wd, '/Tracts_Boston_2010_BARI.csv', sep = '')
+bos_tracts <- read.csv(Tracts_Boston_2010_BARI_CSV)
+```
+
+
+```{r}
+acs1216_bos<-merge(acs1216,bos_tracts,by='CT_ID_10',all.y=TRUE)
+names(acs1216_bos)
+
+```
+
+I decided to take a look at education levels across the various Boston neighborhoods, and how much of an effect median household income has on education.
+
+```{r Data Summary}
+# Looking at the summary of the different levels of education to see if
+# there are any obviously skewed variables
+summary(acs1216_bos$LessThanHS, na.rm=TRUE)
+summary(acs1216_bos$HSGrad, na.rm=TRUE)
+summary(acs1216_bos$SomeColl, na.rm=TRUE)
+summary(acs1216_bos$Bach, na.rm=TRUE)
+summary(acs1216_bos$Master, na.rm=TRUE)
+summary(acs1216_bos$Doc, na.rm=TRUE)
+
+# Defining histograms for each of the levels of education
+hist_LessThanHS<-ggplot(aes(x=LessThanHS), data=acs1216_bos) + geom_histogram()
+hist_HSGrad<-ggplot(aes(x=HSGrad), data=acs1216_bos) + geom_histogram()
+hist_SomeColl<-ggplot(aes(x=SomeColl), data=acs1216_bos) + geom_histogram()
+hist_Bach<-ggplot(aes(x=Bach), data=acs1216_bos) + geom_histogram()
+hist_Master<-ggplot(aes(x=Master), data=acs1216_bos) + geom_histogram()
+hist_Doc<-ggplot(aes(x=Doc), data=acs1216_bos) + geom_histogram()
+```
+
+I decided to remove data relating to Doctorate degrees as the majority of people do not reach this level of education (<10% of people).
+
+Here I wanted to see if there are any obvious correlations between a specific neighborhood and education level.
+
+```{r Stacked Histograms}
+# Make vector of the neighborhoods
+unique_neighborhoods <- unique(acs1216_bos$BRA_PD)
+
+# Show stacked histograms for select education levels across neighborhoods
+stack_hist_LessThanHS<-hist_LessThanHS + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_LessThanHS
+
+stack_hist_HSGrad<-hist_HSGrad + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_HSGrad
+
+stack_hist_SomeColl<-hist_SomeColl + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_SomeColl
+
+stack_hist_Bach<-hist_Bach + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_Bach
+
+stack_hist_Master<-hist_Master + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_Master
+
+```
+It seems to be that Allston/Brighton, Fenway/Kenmore, and Back Bay/Beacon Hill have the lowest percentage of people with less than high school education. The nieghborhood with the highest percentage of people with less than high school education is Charlestown and South Dorchester.
+
+On the other end of the spectrum, those same neighborhoods (Allston/Brighton, Fenway/Kenmore, and Back Bay/Beacon) seem to hold the largest percentage count of people with college graduates (bachelors and masters degrees). The neighborhood with the lowest percentage of college graduates seems to be Charlestown and South Dorchester.
+
+I was also curious to see what the median household income looked like for the different neighborhoods, to see if this could potentially have an effect on education level.
+
+```{r Median Household Income Across Neighborhoods}
+# Histogram of median household income across neighborhoods
+stack_hist_income<-ggplot(aes(x=MedHouseIncome), data=acs1216_bos) + geom_histogram(aes(fill=BRA_PD)) + scale_fill_hue(name="Neighborhood", labels=unique_neighborhoods)
+stack_hist_income + facet_wrap(~BRA_PD)
+```
+
+It is not clear from this chart of Median Household Income by neighborhood which neighborhood has the highest overall median household income. Central, Charlestown, and Back Bay look to be some of the highest, but overall it is hard to distginguish. This does show however that Roxbury seems to have the largest counts of low household incomes.
+
+We now know which neighborhoods tend to have more people with higher education (Allston/Brighton, Fenway/Kenmore, and Back Bay/Beacon), and which neighborhoods tend to have more people with less education (Charlestown, South Dorchester).
+
+I want to investigate more to see if median household income has anything to do with education level.
+
+```{r Income vs Education}
+# Plot median household income against percentage of people who have less than high school education, with a line of best fit
+plot_income_LessThanHS<-ggplot(data=acs1216_bos, aes(x=MedHouseIncome, y=LessThanHS)) + geom_point() + xlab("Median Household Income") + ylab("% Less Than High School Grad") + geom_smooth(method="lm")
+plot_income_LessThanHS
+
+# Plot median household income against percentage of people who have a bachelors degree, with a line of best fit
+plot_income_Bach<-ggplot(data=acs1216_bos, aes(x=MedHouseIncome, y=Bach)) + geom_point() + xlab("Median Household Income") + ylab("% Bachelors Degree") + geom_smooth(method = "lm")
+plot_income_Bach
+```
+
+In these two plots, we can see a negative correlation between median household income and percentage of people not completing high school, and a slightly stronger positive correlation between median household income and percentage of people graduating college with a bachelors degree.
+
+Finally, lets compare the education levels of two neighborhoods in Boston on opposite ends of the economic spectrum, Roxbury and Back Bay/Beacon Hill.
+
+```{r Back Bay/Beacon Hill vs Roxbury}
+# Get the subset of the data only including back bay and beacon hill
+data_roxbury_backbay_beacon <- subset(acs1216_bos, acs1216_bos$BRA_PD == "Roxbury" | acs1216_bos$BRA_PD == "Back Bay/Beacon Hill")
+
+# Plot median household income against percentage of people who have less than high school education, with a line of best fit, and the color of the points being representing the neighborhood
+plot_income_LessThanHS<-ggplot(data=data_roxbury_backbay_beacon, aes(x=MedHouseIncome, y=LessThanHS)) + geom_point(aes(colour=BRA_PD)) + xlab("Median Household Income") + ylab("% Less Than High School Grad") + geom_smooth(method="lm")
+plot_income_LessThanHS
+
+# Plot median household income against percentage of people who have a bachelors degree, with a line of best fit, and the color of the points being representing the neighborhood
+plot_income_Bach<-ggplot(data=data_roxbury_backbay_beacon, aes(x=MedHouseIncome, y=Bach)) + geom_point(aes(colour=BRA_PD)) + xlab("Median Household Income") + ylab("% Bachelors Degree") + geom_smooth(method = "lm")
+plot_income_Bach
+```
+To conclude, we can see that as median household income increases, the chances of higher education level increases. Although this is a fairly basic concept, college tuition prices being as high as they are, the idea is crystal clear when the data is visualized.
+
+Overall, there were not huge disparities in the data, most neighborhoods had fairly evenly dispersed levels of education and income. If there was a particularly high-income neighborhood, chances are they can afford higher education. If there was a particularly low-income neighborhood, its less likely they can afford higher education. Neighorhoods in between, it could go either way.
